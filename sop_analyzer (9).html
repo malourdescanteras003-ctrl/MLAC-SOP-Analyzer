@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MLAC SOP Analyzer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+  <div class="max-w-4xl mx-auto p-6 flex-grow">
+    <!-- Header with Logo -->
+    <div class="flex items-center space-x-3 mb-6">
+      <img src="logo.png" alt="MLAC Logo" class="w-12 h-12">
+      <h1 class="text-3xl font-bold">MLAC SOP Analyzer</h1>
+    </div>
+
+    <!-- Input Section -->
+    <div class="space-y-4 bg-white p-4 rounded shadow">
+      <div>
+        <label class="block text-sm font-medium">Research Title</label>
+        <input id="title" type="text" class="w-full p-2 border rounded" placeholder="Enter your research title here">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium">Statement of the Problem (SOP)</label>
+        <textarea id="sop" rows="6" class="w-full p-2 border rounded" placeholder="Type each SOP on a new line..."></textarea>
+        <p class="text-xs text-slate-500 mt-1">Tip: Write one SOP per line (e.g., numbered 1, 2, 3...)</p>
+      </div>
+
+      <button id="analyzeBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Analyze SOP</button>
+    </div>
+
+    <!-- Output Section -->
+    <div id="results" class="mt-6 hidden bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">Suggested Statistical Measures</h2>
+      <div id="suggestions" class="space-y-4 text-sm"></div>
+
+      <!-- Export buttons -->
+      <div class="mt-4 flex gap-2">
+        <button id="expCsv" class="px-3 py-2 bg-gray-100 rounded border">Export CSV</button>
+        <button id="expJson" class="px-3 py-2 bg-gray-100 rounded border">Export JSON</button>
+        <button id="expXlsx" class="px-3 py-2 bg-gray-100 rounded border">Export Excel</button>
+      </div>
+    </div>
+
+    <!-- Guide / Notes Section -->
+    <div class="mt-8 bg-white p-4 rounded shadow">
+      <button id="toggleGuide" class="w-full text-left font-semibold text-lg">📘 Statistical Tools Guide</button>
+      <div id="guideContent" class="mt-4 space-y-6 hidden text-sm">
+        <div>
+          <strong>Paired Sample T-test</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use when comparing the same group measured twice (e.g., pre-test vs post-test).</li>
+            <li><em>Sample SOP:</em> “Is there a significant difference between the pre-test and post-test scores of students?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Independent Samples T-test</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use when comparing two independent groups (e.g., male vs female, control vs experimental).</li>
+            <li><em>Sample SOP:</em> “Is there a significant difference in the math scores of male and female students?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>ANOVA</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use when comparing three or more groups of numeric data.</li>
+            <li><em>Sample SOP:</em> “Is there a significant difference in academic performance among students taught using three different teaching methods?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Pearson Correlation</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use to measure the relationship between two continuous variables (e.g., study hours and exam scores).</li>
+            <li><em>Sample SOP:</em> “Is there a relationship between study hours and exam scores?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Chi-square Test</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use for categorical data (frequency counts, distributions, preferences).</li>
+            <li><em>Sample SOP:</em> “Is there a significant association between students’ preferred learning styles and their gender?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Proportion Test</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li>Use when comparing proportions or percentages (e.g., pass rates, success rates).</li>
+            <li><em>Sample SOP:</em> “Is there a significant difference in the pass rates between two schools?”</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Non-parametric Alternatives</strong>
+          <ul class="list-disc list-inside text-slate-600">
+            <li><em>Mann-Whitney U Test</em>: Alternative to Independent T-test for ordinal/non-normal data.<br><em>Sample SOP:</em> “Is there a difference in satisfaction ratings (ordinal scale) between two groups of respondents?”</li>
+            <li><em>Wilcoxon Signed-Rank Test</em>: Alternative to Paired T-test for ordinal/non-normal data.<br><em>Sample SOP:</em> “Is there a difference in stress levels (ordinal scale) before and after meditation training?”</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-slate-100 text-center text-sm text-slate-600 py-4 mt-6">
+    © 2025 MLAC SOP Analyzer. All Rights Reserved.
+  </footer>
+
+<script>
+let lastAnalysis = {};
+
+function analyzeSOP() {
+  const title = document.getElementById('title').value.trim();
+  const sopText = document.getElementById('sop').value.trim();
+  const sopItems = sopText.split(/\n+/).filter(line => line.trim() !== '');
+  const analysisItems = [];
+
+  sopItems.forEach((sopLine, idx) => {
+    const sopLower = sopLine.toLowerCase();
+    let dataText = '';
+    let toolText = '';
+
+    if (sopLower.includes('pre-test') && sopLower.includes('post-test')) {
+      toolText = 'Paired Sample T-test';
+      dataText = 'Pre-test and Post-test scores from the same group of students';
+    }
+    else if (sopLower.includes('male') && sopLower.includes('female')) {
+      toolText = 'Independent Samples T-test';
+      dataText = 'Scores of male students vs scores of female students';
+    }
+    else if (sopLower.includes('group a') || sopLower.includes('group b')) {
+      toolText = 'Independent Samples T-test';
+      dataText = 'Scores of two independent groups (e.g., Group A vs Group B)';
+    }
+    else if (sopLower.includes('effective') || sopLower.includes('effectiveness')) {
+      toolText = 'Paired Sample T-test';
+      dataText = 'Pre-test and Post-test performance data';
+    }
+    else if (sopLower.includes('attitude') || sopLower.includes('perception') || sopLower.includes('usability') || sopLower.includes('acceptance')) {
+      toolText = 'Descriptive Statistics (and possibly Wilcoxon Signed-Rank if comparing before/after)';
+      dataText = 'Survey or questionnaire responses (Likert scale data)';
+    }
+    else if (sopLower.includes('difference') || sopLower.includes('compare')) {
+      if (sopLower.includes('three') || sopLower.includes('3') || sopLower.includes('more than two')) {
+        toolText = 'ANOVA';
+        dataText = 'Scores from three or more groups';
+      } else {
+        toolText = 'Independent Samples T-test';
+        dataText = 'Scores from two independent groups';
+      }
+    }
+    else if (sopLower.includes('relationship') || sopLower.includes('association') || sopLower.includes('correlation')) {
+      toolText = 'Pearson Correlation';
+      dataText = 'Two paired sets of numeric variables (e.g., study hours and exam scores)';
+    }
+    else if (sopLower.includes('proportion') || sopLower.includes('percentage') || sopLower.includes('rate')) {
+      toolText = 'Proportion Test (Z-test for proportions)';
+      dataText = 'Proportion/percentage data from two or more groups';
+    }
+    else if (sopLower.includes('category') || sopLower.includes('nominal') || sopLower.includes('frequency') || sopLower.includes('distribution') || sopLower.includes('preferred')) {
+      toolText = 'Chi-square Test';
+      dataText = 'Categorical frequency data (e.g., preferred learning styles, counts)';
+    }
+    else {
+      toolText = 'Descriptive Statistics';
+      dataText = 'Summaries such as mean, standard deviation, and frequency counts';
+    }
+
+    analysisItems.push({ number: idx+1, sop: sopLine, data: dataText, tool: toolText });
+  });
+
+  lastAnalysis = { title, sopItems: analysisItems };
+
+  // render results
+  const container = document.getElementById('suggestions');
+  container.innerHTML = '';
+  analysisItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'p-3 border rounded';
+    let html = `<strong>SOP ${item.number}:</strong> ${item.sop}<br>`;
+    html += `<div class=\"ml-4 mt-1\"><strong>Data:</strong> ${item.data}</div>`;
+    html += `<div class=\"ml-4 mt-1\"><strong>Tool:</strong> ${item.tool}</div>`;
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+
+  document.getElementById('results').classList.remove('hidden');
+}
+
+/* Export functions */
+function exportCSV(){
+  let csv = `Research Title,${lastAnalysis.title}\n\n`;
+  lastAnalysis.sopItems.forEach(item => {
+    csv += `SOP ${item.number},${item.sop}\n`;
+    csv += `Data,${item.data}\n`;
+    csv += `Tool,${item.tool}\n\n`;
+  });
+  downloadBlob(csv,'sop_analysis.csv','text/csv;charset=utf-8;');
+}
+
+function exportJSON(){
+  downloadBlob(JSON.stringify(lastAnalysis,null,2),'sop_analysis.json','application/json;charset=utf-8;');
+}
+
+function exportXLSX(){
+  const aoa = [["Research Title", lastAnalysis.title],[""],["SOP","Data","Tool"]];
+  lastAnalysis.sopItems.forEach(item => {
+    aoa.push([`SOP ${item.number}: ${item.sop}`, item.data, item.tool]);
+    aoa.push(['','','']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Analysis');
+  XLSX.writeFile(wb,'sop_analysis.xlsx');
+}
+
+function downloadBlob(content,filename,mime){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// event binding
+document.getElementById('analyzeBtn').addEventListener('click', analyzeSOP);
+document.getElementById('expCsv').addEventListener('click', exportCSV);
+document.getElementById('expJson').addEventListener('click', exportJSON);
+document.getElementById('expXlsx').addEventListener('click', exportXLSX);
+document.getElementById('toggleGuide').addEventListener('click', ()=>{
+  document.getElementById('guideContent').classList.toggle('hidden');
+});
+</script>
+</body>
+</html>
